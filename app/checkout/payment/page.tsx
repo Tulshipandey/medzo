@@ -1,9 +1,14 @@
+'use client';
+
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { CreditCard, Smartphone, Wallet, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useCart } from "@/app/context/CartContext";
+
 
 export default function PaymentPage() {
+  const { cartItems, getTotalPrice } = useCart();
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -25,27 +30,24 @@ export default function PaymentPage() {
           <div className="md:col-span-2 space-y-6">
             {/* Order Summary Card */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-gray-600">
-                  <span>Paracetamol 500mg x 2</span>
-                  <span>₹50</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>ORS Powder x 1</span>
-                  <span>₹30</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>Cough Syrup x 1</span>
-                  <span>₹85</span>
-                </div>
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <div className="flex justify-between font-semibold text-gray-900">
-                    <span>Total Amount</span>
-                    <span>₹165</span>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Order Items</h2>
+              <div className="space-y-3">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                    <div>
+                      <p className="font-medium text-gray-900">{item.name}</p>
+                      <p className="text-sm text-gray-600">Qty: {item.quantity} × ₹{item.price}</p>
+                    </div>
+                    <p className="font-semibold text-gray-900">₹{item.price * item.quantity}</p>
                   </div>
-                </div>
+                ))}
               </div>
+              
+              <hr />
+              <div className="flex justify-between text-lg font-bold text-gray-900 mb-6">
+                  <span>Total</span>
+                  <span>₹{getTotalPrice()}</span>
+                </div>
             </div>
 
             {/* Payment Methods */}
@@ -139,10 +141,7 @@ export default function PaymentPage() {
               </div>
 
               <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="flex justify-between text-lg font-bold text-gray-900 mb-6">
-                  <span>Total</span>
-                  <span>₹165</span>
-                </div>
+                
                 <Link
                   href="/orders/status"
                   className="block w-full text-center px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"

@@ -2,17 +2,20 @@
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { MapPin, CreditCard, Truck, AlertCircle } from "lucide-react";
+import { MapPin, CreditCard, Truck, AlertCircle, Home, Building } from "lucide-react";
 import Link from "next/link";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
-import { useEffect } from "react";
+import { useAddress } from "../context/AddressContext";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
   const { cartItems, getTotalPrice } = useCart();
   const { isAuthenticated } = useAuth();
+  const { addresses, getDefaultAddress, getAddressById } = useAddress();
   const router = useRouter();
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   useEffect(() => {
     // If cart is empty, redirect to cart page
@@ -28,6 +31,20 @@ export default function CheckoutPage() {
       router.push('/login');
     }
   }, [cartItems.length, isAuthenticated, router]);
+
+  useEffect(() => {
+    // Get selected address from localStorage or use default
+    const savedAddressId = localStorage.getItem('medswift_selected_address_id');
+    if (savedAddressId && getAddressById(savedAddressId)) {
+      setSelectedAddressId(savedAddressId);
+    } else if (addresses.length > 0) {
+      const defaultAddr = getDefaultAddress();
+      if (defaultAddr) {
+        setSelectedAddressId(defaultAddr.id);
+        localStorage.setItem('medswift_selected_address_id', defaultAddr.id);
+      }
+    }
+  }, [addresses, getDefaultAddress, getAddressById]);
 
   // Show loading or redirect message if not authenticated
   if (!isAuthenticated) {
@@ -51,21 +68,21 @@ export default function CheckoutPage() {
     );
   }
 
-  const addresses = [
-    {
-      id: "1",
-      name: "Home",
-      address: "123 Main Street, Apartment 4B",
-      city: "Mumbai",
-      pincode: "400001",
-      phone: "+91 98765 43210",
-      isDefault: true,
-    },
-  ];
-
+  const selectedAddress = selectedAddressId ? getAddressById(selectedAddressId) : null;
   const subtotal = getTotalPrice();
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "home":
+        return <Home className="w-4 h-4" />;
+      case "office":
+        return <Building className="w-4 h-4" />;
+      default:
+        return <MapPin className="w-4 h-4" />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -88,37 +105,86 @@ export default function CheckoutPage() {
                   href="/checkout/address"
                   className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                 >
-                  Add New
+                  {addresses.length === 0 ? "Add Address" : "Change Address"}
                 </Link>
               </div>
 
-              {addresses.map((addr) => (
-                <div
-                  key={addr.id}
-                  className={`border-2 rounded-lg p-4 ${
-                    addr.isDefault ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                  }`}
-                >
+              {addresses.length === 0 ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-4">No delivery address added</p>
+                  <Link
+                    href="/checkout/address"
+                    className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Add Address
+                  </Link>
+                </div>
+              ) : selectedAddress ? (
+                <div className="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <span className="font-semibold text-gray-900">{addr.name}</span>
-                        {addr.isDefault && (
+                        {getTypeIcon(selectedAddress.type)}
+                        <span className="font-semibold text-gray-900 capitalize">{selectedAddress.name}</span>
+                        {selectedAddress.isDefault && (
                           <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded">Default</span>
                         )}
                       </div>
-                      <p className="text-gray-700">{addr.address}</p>
+                      <p className="text-gray-700">{selectedAddress.address}</p>
                       <p className="text-gray-700">
-                        {addr.city} - {addr.pincode}
+                        {selectedAddress.city} - {selectedAddress.pincode}
                       </p>
-                      <p className="text-gray-600 text-sm mt-1">Phone: {addr.phone}</p>
+                      <p className="text-gray-600 text-sm mt-1">Phone: {selectedAddress.phone}</p>
                     </div>
-                    <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    <Link
+                      href="/checkout/address"
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
                       Change
-                    </button>
+                    </Link>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                        selectedAddressId === addr.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-blue-300"
+                      }`}
+                      onClick={() => {
+                        setSelectedAddressId(addr.id);
+                        localStorage.setItem('medswift_selected_address_id', addr.id);
+                      }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            {getTypeIcon(addr.type)}
+                            <span className="font-semibold text-gray-900 capitalize">{addr.name}</span>
+                            {addr.isDefault && (
+                              <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded">Default</span>
+                            )}
+                          </div>
+                          <p className="text-gray-700">{addr.address}</p>
+                          <p className="text-gray-700">
+                            {addr.city} - {addr.pincode}
+                          </p>
+                          <p className="text-gray-600 text-sm mt-1">Phone: {addr.phone}</p>
+                        </div>
+                        {selectedAddressId === addr.id && (
+                          <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Order Items Summary */}
@@ -137,7 +203,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Payment Method */}
+            {/* Payment Method
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center space-x-2">
                 <CreditCard className="w-5 h-5 text-blue-600" />
@@ -169,7 +235,7 @@ export default function CheckoutPage() {
                   </div>
                 </label>
               </div>
-            </div>
+            </div> */}
 
             {/* Delivery Info */}
             <div className="bg-gradient-to-br from-blue-50 to-green-50 rounded-xl p-6 border-2 border-blue-100">
@@ -209,11 +275,34 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </div>
+              
+              {!selectedAddress && addresses.length > 0 && (
+                <div className="mb-4 p-3 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">Please select a delivery address</p>
+                </div>
+              )}
+              
+              {addresses.length === 0 && (
+                <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">Please add a delivery address</p>
+                </div>
+              )}
+
               <Link
-                href="/checkout/payment"
-                className="block w-full text-center px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                href={selectedAddress ? "/checkout/payment" : "#"}
+                onClick={(e) => {
+                  if (!selectedAddress) {
+                    e.preventDefault();
+                    router.push('/checkout/address');
+                  }
+                }}
+                className={`block w-full text-center px-6 py-4 rounded-xl font-semibold transition-colors ${
+                  selectedAddress
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-400 text-white cursor-not-allowed"
+                }`}
               >
-                Place Order
+                {selectedAddress ? "Make Payment" : "Add Address First"}
               </Link>
             </div>
           </div>
